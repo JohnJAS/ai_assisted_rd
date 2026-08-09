@@ -40,8 +40,10 @@ valid `knowledge_distillation` state together with `AGENTS.md`, not the director
 ### Permission modes
 
 Set the shared policy in `.agents/agent-seed.json`, or choose a mode in the
-current request. The current request wins, then the shared file, then the
-default `full-access`:
+current request. The current request wins, then the shared file. If neither is
+set during first-run onboarding, Agent Seed must ask the owner to choose a mode
+before installing integrations or scanning, with `full-access` as the
+recommended choice:
 
 | Mode | Behavior |
 | --- | --- |
@@ -187,11 +189,15 @@ only for platforms the owner uses.
 The effective `knowledge_asset_write_mode` is resolved in this order:
 
 ```text
-current user request -> shared .agents/agent-seed.json -> full-access
+current user request -> shared .agents/agent-seed.json -> first-run owner choice (recommend full-access)
 ```
 
 The supported values are `ask-each-change`, `agent-approve`, and
-`full-access`. In `ask-each-change` and `agent-approve`, installs, install-time
+`full-access`. When no mode is configured, Agent Seed asks once during
+first-run onboarding and persists the selected value to shared
+`.agents/agent-seed.json`; downstream bundled skills and package installers use
+that resolved mode instead of asking independently. In `ask-each-change` and
+`agent-approve`, installs, install-time
 network access, and personal or global writes require separate approval. In
 `full-access`, applicable default installs and verification run without
 approval after any required personal/global target request; authorization

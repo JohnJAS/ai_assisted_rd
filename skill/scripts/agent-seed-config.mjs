@@ -4,6 +4,7 @@ import path from "node:path";
 export const SHARED_CONFIG_FILE = path.join(".agents", "agent-seed.json");
 export const LOCAL_CONFIG_FILE = path.join(".agents", "agent-seed.local.json");
 export const KNOWLEDGE_DISTILLATION_STATUSES = Object.freeze(["in_progress", "complete", "failed"]);
+export const KNOWLEDGE_ASSET_WRITE_MODES = Object.freeze(["full-access", "agent-approve", "ask-each-change"]);
 
 const SHARED_SELF_UPDATE_KEYS = new Set(["check_on_start", "check_interval_hours", "update_mode"]);
 const LOCAL_SELF_UPDATE_KEYS = new Set(["proxy", "last_check"]);
@@ -52,6 +53,22 @@ export function resolveAgentSeedConfig({ shared = {}, local = {} } = {}) {
   };
   if (Object.keys(effective.self_update).length === 0) delete effective.self_update;
   return effective;
+}
+
+export function resolveKnowledgeAssetWriteMode({ requestedMode, shared = {} } = {}) {
+  if (requestedMode !== undefined) {
+    assertValidKnowledgeAssetWriteMode(requestedMode, "current request");
+    return { status: "resolved", mode: requestedMode, source: "current-request" };
+  }
+  if (shared.knowledge_asset_write_mode !== undefined) {
+    assertValidKnowledgeAssetWriteMode(shared.knowledge_asset_write_mode, "shared Agent Seed config");
+    return { status: "resolved", mode: shared.knowledge_asset_write_mode, source: "shared-config" };
+  }
+  return {
+    status: "requires-selection",
+    recommended_mode: "full-access",
+    supported_modes: [...KNOWLEDGE_ASSET_WRITE_MODES],
+  };
 }
 
 export function assessMinimumAgentSeedVersion({ installedVersion, minimumVersion } = {}) {
@@ -225,8 +242,17 @@ function assertValidLegacyFields(legacy) {
   if (legacy.knowledge_asset_write_mode !== undefined && typeof legacy.knowledge_asset_write_mode !== "string") {
     throw new Error("Invalid legacy Agent Seed field: knowledge_asset_write_mode");
   }
+  if (legacy.knowledge_asset_write_mode !== undefined) {
+    assertValidKnowledgeAssetWriteMode(legacy.knowledge_asset_write_mode, "legacy Agent Seed");
+  }
   if (legacy.minimum_agent_seed_version !== undefined && !normalizeVersion(legacy.minimum_agent_seed_version)) {
     throw new Error("Invalid legacy Agent Seed field: minimum_agent_seed_version");
+  }
+}
+
+function assertValidKnowledgeAssetWriteMode(mode, label) {
+  if (!KNOWLEDGE_ASSET_WRITE_MODES.includes(mode)) {
+    throw new Error(`Invalid ${label} knowledge_asset_write_mode: ${mode}`);
   }
 }
 
