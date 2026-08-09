@@ -44,7 +44,7 @@ Parse the configured URL with a URL parser and normalize its hostname to lowerca
 
 The sitemap is an optional externally maintained navigation asset. The Markdown file is shared project knowledge and may be committed; create it from `references/site-knowledge-template.md` when needed. Keep hosts isolated: never use one site's paths, selectors, APIs, or limitations for another host.
 
-Apply the resolved project `knowledge_asset_write_mode` when it is available; otherwise default to `full-access`. With `full-access`, update the site file after a successful lookup. With `agent-approve`, update it after the owner has confirmed the lookup scope. With `ask-each-change`, ask before creating or editing it.
+Apply the resolved project `knowledge_asset_write_mode` when it is available. If no current request or shared `.agents/agent-seed.json` mode exists, report `mode-selection-required` and ask the owner to run Agent Seed first-run setup; do not choose a fallback mode inside ticket-lookup. With `full-access`, update the site file after a successful lookup. With `agent-approve`, update it after the owner has confirmed the lookup scope. With `ask-each-change`, ask before creating or editing it.
 
 Record only durable navigation paths, UI behavior, API shapes, parsing requirements, and reproducible limitations. Prefix every entry with `Observed`, `Verified`, or `Inferred`. Do not record ticket content, ticket body text, credentials, cookies, tokens, personal account data, or one-off incident details.
 

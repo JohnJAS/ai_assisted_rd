@@ -13,6 +13,7 @@ import {
   migrateAgentSeedConfig,
   readAgentSeedFiles,
   refreshAgentSeedBaseline,
+  resolveKnowledgeAssetWriteMode,
   resolveAgentSeedConfig,
   shouldStartKnowledgeDistillation,
   splitLegacyAgentSeedConfig,
@@ -55,6 +56,24 @@ test("effective config combines shared policy with local state without local pol
   assert.equal(effective.self_update.update_mode, "notify");
   assert.equal(effective.self_update.proxy.https_proxy, "http://proxy.example:8080");
   assert.equal(effective.self_update.last_check.status, "current");
+});
+
+test("knowledge asset write mode requires first-run selection when unconfigured", () => {
+  assert.deepEqual(resolveKnowledgeAssetWriteMode({}), {
+    status: "requires-selection",
+    recommended_mode: "full-access",
+    supported_modes: ["full-access", "agent-approve", "ask-each-change"],
+  });
+  assert.deepEqual(resolveKnowledgeAssetWriteMode({ shared: { knowledge_asset_write_mode: "agent-approve" } }), {
+    status: "resolved",
+    mode: "agent-approve",
+    source: "shared-config",
+  });
+  assert.deepEqual(resolveKnowledgeAssetWriteMode({ requestedMode: "ask-each-change", shared: { knowledge_asset_write_mode: "full-access" } }), {
+    status: "resolved",
+    mode: "ask-each-change",
+    source: "current-request",
+  });
 });
 
 test("legacy config is split into shared policy and local state", () => {

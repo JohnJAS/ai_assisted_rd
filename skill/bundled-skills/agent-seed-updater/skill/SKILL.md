@@ -20,8 +20,11 @@ Read `.agents/agent-seed.local.json` and validate `installation.skill_root` by c
 ## Resolve Mode
 
 Resolve the effective `knowledge_asset_write_mode` before the preflight: use the
-current user request first, then shared `.agents/agent-seed.json`, then default
-to `full-access`. In `full-access`, the root
+current user request first, then shared `.agents/agent-seed.json`. If neither is
+set, report `mode-selection-required` and ask the owner to run Agent Seed
+first-run setup, which recommends `full-access` and writes the selected mode to
+the shared config. Do not choose a fallback mode inside this updater. In
+`full-access`, the root
 `activation_policy.managed_target_policy.full_access: replace-and-verify`
 authorizes declared project-local managed target replacement. A missing root
 policy uses conservative approval-gated behavior for existing targets. In

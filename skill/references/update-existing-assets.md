@@ -6,7 +6,7 @@ Trigger phrases include "remember this", "add this to AGENTS.md", "update agents
 
 ## Knowledge Asset Write Mode
 
-Resolve `knowledge_asset_write_mode` before editing existing assets. The current user request wins over shared project config. If the user does not specify a mode, read `.agents/agent-seed.json`. If it is missing, default to `full-access`; the owner may select a stricter mode explicitly.
+Resolve `knowledge_asset_write_mode` before editing existing assets. The current user request wins over shared project config. If the user does not specify a mode, read `.agents/agent-seed.json`. If it is missing, stop and ask the owner to choose one mode through the Agent Seed Activation Preflight, recommend `full-access`, persist the selected mode in `.agents/agent-seed.json`, and then resume the update. Do not let a downstream update flow choose its own fallback.
 
 Persist shared Agent Seed policy, including the write mode, as:
 

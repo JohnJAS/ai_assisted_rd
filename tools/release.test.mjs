@@ -1016,6 +1016,7 @@ test("Agent Seed resolves full-access before installing applicable defaults", as
   const prompt = await readFile(path.join(rootDir, "skill", "agents", "openai.yaml"), "utf8");
 
   assert.match(skill, /resolve `knowledge_asset_write_mode` before the Activation Preflight/i);
+  assert.match(skill, /ask the owner to choose.*recommend `full-access`.*persist the selected mode/is);
   assert.match(skill, /full-access.*install.*without.*approval/is);
   assert.match(skill, /network.*personal.*global.*without.*approval/is);
   assert.match(skill, /manifest-declared.*side effects.*hooks/is);
@@ -1029,6 +1030,7 @@ test("Agent Seed resolves full-access before installing applicable defaults", as
   assert.match(skill, /approval_gated.*ask-before-write/is);
 
   assert.match(prompt, /resolve.*knowledge_asset_write_mode.*before.*preflight/i);
+  assert.match(prompt, /ask me to choose a mode.*recommend full-access.*persist the selected mode/i);
   assert.match(prompt, /full-access.*install.*verify.*without approval/i);
   assert.match(prompt, /Superpowers.*OpenCLI/i);
   assert.match(prompt, /failure.*block onboarding/i);
@@ -1073,10 +1075,11 @@ test("knowledge asset write mode is persistent and documented across write workf
     assert.match(content, /ask-each-change/, path.relative(rootDir, filePath));
     assert.match(content, /agent-approve/, path.relative(rootDir, filePath));
     assert.match(content, /full-access/, path.relative(rootDir, filePath));
+    assert.doesNotMatch(content, /missing[^.]*default to `full-access`|default to `full-access`[^.]*missing/is, path.relative(rootDir, filePath));
   }
 
   const skill = await readFile(path.join(rootDir, "skill", "SKILL.md"), "utf8");
-  assert.match(skill, /default to `full-access`/i);
+  assert.match(skill, /ask the owner to choose.*recommend `full-access`/is);
   assert.match(skill, /current user request wins/i);
 });
 
