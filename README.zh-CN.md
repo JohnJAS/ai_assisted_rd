@@ -81,9 +81,12 @@ External integrations 仍由平台维护，Agent Seed 只报告状态，不复�
 
 当前 bundled package 是 `git-code-tracker`。在安装版 Agent Seed 根目录执行：
 
-```sh
-node scripts/install-git-code-tracker.mjs <target-project> [--platform <platform>]
-```
+  ```sh
+  node scripts/install-git-code-tracker.mjs <target-project> [--platform <platform>]
+  ```
+
+当前 bundled package 版本为 `v1.0.7`，包含 AI 修改来源记录能力，并通过
+`pre-commit`、`post-commit`、`pre-push` 和 `post-rewrite` Git hooks 工作。
 
 它会按平台复制 tracker skill 并运行其安装器，可能写入平台 skill、commands、`AGENTS.md`、`.ai-tracking/`、`.gitignore` 和 Git hooks。审批模式下请先确认这些清单声明的写入；`full-access` 只会在适用的平台门控通过后自动执行。
 

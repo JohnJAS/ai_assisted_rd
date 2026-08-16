@@ -42,16 +42,16 @@
   "bundled_packages": [
     {
       "name": "git-code-tracker",
-      "version": "v1.0.6",
+      "version": "v1.0.7",
       "kind": "multi-platform-release-asset",
       "source": {
         "type": "github-release-asset",
         "repo": "https://github.com/yooocen/git-code-tracker",
-        "ref": "refs/tags/v1.0.6",
-        "commit": "871267c9add00df218af39be23ea7ce2f0a51cdf",
-        "asset": "ai-commit-statistic-skill-v1.0.6.zip"
+        "ref": "refs/tags/v1.0.7",
+        "commit": "d882fc8ba66b5aadf32e0c445389e51eaa17ae7f",
+        "asset": "ai-commit-statistic-skill-v1.0.7.zip"
       },
-      "asset_path": "packages/git-code-tracker/ai-commit-statistic-skill-v1.0.6.zip",
+      "asset_path": "packages/git-code-tracker/ai-commit-statistic-skill-v1.0.7.zip",
       "default_install": {
         "mode": "project-local",
         "offer_by_default": true,

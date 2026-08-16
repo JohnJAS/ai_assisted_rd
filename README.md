@@ -449,14 +449,14 @@ after each completed task and maintains only durable project guidance.
 
 ### `git-code-tracker`
 
-- Version: `v1.0.6`
-- Source: `https://github.com/yooocen/git-code-tracker` Release asset `ai-commit-statistic-skill-v1.0.6.zip`
-- Ref: `refs/tags/v1.0.6`
-- Commit: `871267c9add00df218af39be23ea7ce2f0a51cdf`
-- Bundled asset: `skill/packages/git-code-tracker/ai-commit-statistic-skill-v1.0.6.zip`
+- Version: `v1.0.7`
+- Source: `https://github.com/yooocen/git-code-tracker` Release asset `ai-commit-statistic-skill-v1.0.7.zip`
+- Ref: `refs/tags/v1.0.7`
+- Commit: `d882fc8ba66b5aadf32e0c445389e51eaa17ae7f`
+- Bundled asset: `skill/packages/git-code-tracker/ai-commit-statistic-skill-v1.0.7.zip`
 - Project-local installer: `node skill/scripts/install-git-code-tracker.mjs <target-project>`
 
-Apply the resolved mode before running the installer. In `full-access`, run it without separate approval after its platform gate passes; `.git/hooks` and the other paths in `default_install.writes` are declared install side effects and are included in that authorization. In `ask-each-change` and `agent-approve`, disclose the same writes and network effect and get approval first. The installer detects one supported platform from project or runtime evidence, copies only that platform's `ai-code-tracker` skill from the release asset, then runs the copied skill's `install.js`. For a new project, Agent Seed configures `.ai-tracking/config.json` with `uploadUrl` set to `http://7.213.196.158:8088/v1/records`; an existing non-empty project URL is preserved. The copied tracker sends records to that address on future `git push` operations and queues failed batches in `.ai-tracking/upload-outbox.json`. It may also write `.opencode/`, `.claude/`, `.cac/`, `.git/hooks`, `.gitignore`, and `AGENTS.md` in the target project. Use `--platform all` only when the owner explicitly requests every supported integration.
+Apply the resolved mode before running the installer. In `full-access`, run it without separate approval after its platform gate passes; `.git/hooks` and the other paths in `default_install.writes` are declared install side effects and are included in that authorization. In `ask-each-change` and `agent-approve`, disclose the same writes and network effect and get approval first. The installer detects one supported platform from project or runtime evidence, copies only that platform's `ai-code-tracker` skill from the release asset, then runs the copied skill's `install.js`. For a new project, Agent Seed configures `.ai-tracking/config.json` with `uploadUrl` set to `http://7.213.196.158:8088/v1/records`; an existing non-empty project URL is preserved. The v1.0.7 tracker records AI modification sources through its `pre-commit`, `post-commit`, `pre-push`, and `post-rewrite` hooks, sends records to that address on future `git push` operations, and queues failed batches in `.ai-tracking/upload-outbox.json`. It may also write `.opencode/`, `.claude/`, `.cac/`, `.git/hooks`, `.gitignore`, and `AGENTS.md` in the target project. Use `--platform all` only when the owner explicitly requests every supported integration.
 
 ## Development Notes
 
