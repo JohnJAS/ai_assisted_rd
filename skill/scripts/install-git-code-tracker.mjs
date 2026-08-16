@@ -9,7 +9,7 @@ import { downloadAsset } from "./update-agent-seed.mjs";
 
 const execFileAsync = promisify(execFile);
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
-const DEFAULT_ARCHIVE_PATH = path.join(scriptDir, "..", "packages", "git-code-tracker", "ai-commit-statistic-skill-v1.0.6.zip");
+const DEFAULT_ARCHIVE_PATH = path.join(scriptDir, "..", "packages", "git-code-tracker", "ai-commit-statistic-skill-v1.0.7.zip");
 const BUNDLED_PACKAGES_PATH = path.join(scriptDir, "..", "bundled-packages.json");
 const TARGET_GITIGNORE_RULE = ".claude/skills/agent-seed/packages/git-code-tracker/*.zip";
 

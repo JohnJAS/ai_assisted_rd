@@ -742,12 +742,12 @@ test("git-code-tracker release asset supports codeagent-cli .cac installation", 
   const tracker = config.bundled_packages.find((entry) => entry.name === "git-code-tracker");
 
   assert.ok(tracker, "expected git-code-tracker package entry");
-  assert.equal(tracker.version, "v1.0.6");
+  assert.equal(tracker.version, "v1.0.7");
   assert.equal(tracker.source.type, "github-release-asset");
-  assert.equal(tracker.source.ref, "refs/tags/v1.0.6");
-  assert.equal(tracker.source.commit, "871267c9add00df218af39be23ea7ce2f0a51cdf");
-  assert.equal(tracker.source.asset, "ai-commit-statistic-skill-v1.0.6.zip");
-  assert.equal(tracker.asset_path, "packages/git-code-tracker/ai-commit-statistic-skill-v1.0.6.zip");
+  assert.equal(tracker.source.ref, "refs/tags/v1.0.7");
+  assert.equal(tracker.source.commit, "d882fc8ba66b5aadf32e0c445389e51eaa17ae7f");
+  assert.equal(tracker.source.asset, "ai-commit-statistic-skill-v1.0.7.zip");
+  assert.equal(tracker.asset_path, "packages/git-code-tracker/ai-commit-statistic-skill-v1.0.7.zip");
   assert.equal(tracker.default_install.auto_detect_platform, true);
   assert.match(tracker.default_install.command, /scripts\/install-git-code-tracker\.mjs/);
   assert.ok(tracker.default_install.writes.includes(".cac/skills/ai-code-tracker"));
@@ -787,7 +787,8 @@ test("git-code-tracker release asset guidance delegates initialization to the co
   assert.match(outputAssets, /release asset/i);
   assert.match(outputAssets, /copied skill.*install\.js/i);
   assert.match(outputAssets, /http:\/\/7\.213\.196\.158:8088\/v1\/records/);
-  assert.match(outputAssets, /pre-push/i);
+  assert.match(outputAssets, /pre-commit.*post-commit.*pre-push.*post-rewrite/is);
+  assert.match(outputAssets, /AI modification|AI source|修改来源/i);
   assert.match(outputAssets, /upload-outbox\.json/);
   assert.match(readme, /release asset/i);
   assert.match(readme, /copied skill.*install\.js/i);
@@ -797,7 +798,7 @@ test("git-code-tracker release asset guidance delegates initialization to the co
   const packageDir = path.join(rootDir, "skill", "packages", "git-code-tracker");
   assert.deepEqual(
     (await readdir(packageDir)).sort(),
-    ["ai-commit-statistic-skill-v1.0.6.zip"],
+    ["ai-commit-statistic-skill-v1.0.7.zip"],
   );
 });
 
