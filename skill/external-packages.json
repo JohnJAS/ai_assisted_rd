@@ -17,29 +17,13 @@
         "allow_network": true,
         "allow_personal_or_global_writes": true,
         "authorize_declared_install_side_effects": true,
-        "failure_action": "block_onboarding",
-        "required_integrations": [
-          "superpowers",
-          "opencli"
-        ]
+        "failure_action": "report-and-continue"
       }
     },
     "update_policy": {
       "ownership": "platform-native",
       "version_check": "best-effort",
       "update_requires_user_approval": true
-    },
-    "recurring_install_prompt": {
-      "applies_to": [
-        "opencli"
-      ],
-      "modes": [
-        "ask-each-change",
-        "agent-approve"
-      ],
-      "missing_action": "must_ask_every_activation_before_onboarding",
-      "declined_action": "record_reason_and_continue",
-      "previous_decline_suppresses_prompt": false
     }
   },
   "recommended_external_plugins": [

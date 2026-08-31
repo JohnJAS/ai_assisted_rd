@@ -17,7 +17,7 @@
         "allow_network": true,
         "allow_personal_or_global_writes": true,
         "authorize_declared_install_side_effects": true,
-        "failure_action": "block_onboarding",
+        "failure_action": "report-and-continue",
         "applies_to_default_installs": true
       }
     },
@@ -25,18 +25,6 @@
       "full_access": "replace-and-verify",
       "approval_gated": "ask-before-write",
       "personal_or_global_target_requires_explicit_request": true
-    },
-    "recurring_install_prompt": {
-      "applies_to": [
-        "git-code-tracker"
-      ],
-      "modes": [
-        "ask-each-change",
-        "agent-approve"
-      ],
-      "missing_action": "must_ask_every_activation_before_onboarding",
-      "declined_action": "record_reason_and_continue",
-      "previous_decline_suppresses_prompt": false
     }
   },
   "bundled_packages": [
@@ -54,7 +42,7 @@
       "asset_path": "packages/git-code-tracker/ai-commit-statistic-skill-v1.0.7.zip",
       "default_install": {
         "mode": "project-local",
-        "offer_by_default": true,
+        "offer_by_default": false,
         "requires_user_approval_in_modes": [
           "ask-each-change",
           "agent-approve"

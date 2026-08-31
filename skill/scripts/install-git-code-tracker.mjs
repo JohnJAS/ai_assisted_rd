@@ -198,6 +198,11 @@ async function applyUploadDefault({ targetDir, uploadConfig }) {
 }
 
 async function extractArchive(archivePath, destinationDir) {
+  try {
+    await execFileAsync("tar", ["-xf", archivePath, "-C", destinationDir], { windowsHide: true });
+    return;
+  } catch {}
+
   const command = [
     "-NoProfile",
     "-Command",

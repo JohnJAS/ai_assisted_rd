@@ -81,3 +81,4 @@ Public information about private, vendor, internally named, or preset-supported 
 - Use registry aliases and the matching knowledge pack for targeted scans, not for confirmed facts.
 - Capture the owner's explanation of the framework's role, generated files, command flow, and edit boundaries before writing onboarding instructions.
 - Record unresolved framework semantics under `Missing Context` rather than filling gaps from guesswork.
+

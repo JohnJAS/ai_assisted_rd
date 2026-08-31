@@ -30,13 +30,14 @@
   "bundled_skills": [
     {
       "name": "agent-seed-updater",
-      "version": "$AGENT_SEED_VERSION",
+      "version": "v1.0.0",
       "kind": "multi-platform-direct-skill",
       "source_path": "bundled-skills/agent-seed-updater/skill",
       "purpose": "Check the installed Agent Seed release and its project-local managed skills once per conversation without running onboarding or repository scans.",
       "default_install": {
         "mode": "project-local",
         "offer_by_default": true,
+        "required": true,
         "requires_user_approval_in_modes": [
           "ask-each-change",
           "agent-approve"
@@ -102,13 +103,13 @@
     },
     {
       "name": "gitpush",
-      "version": "$AGENT_SEED_VERSION",
+      "version": "v1.0.0",
       "kind": "multi-platform-direct-skill",
       "source_path": "bundled-skills/gitpush/skill",
       "purpose": "Commit local Git changes and push them to the remote repository, with optional branch squash.",
       "default_install": {
         "mode": "project-local",
-        "offer_by_default": true,
+        "offer_by_default": false,
         "requires_user_approval_in_modes": [
           "ask-each-change",
           "agent-approve"
@@ -163,13 +164,13 @@
     },
     {
       "name": "gittag",
-      "version": "$AGENT_SEED_VERSION",
+      "version": "v1.0.0",
       "kind": "multi-platform-direct-skill",
       "source_path": "bundled-skills/gittag/skill",
       "purpose": "Create a Git tag after syncing the fork mainline, then push the exact tag to both origin and upstream.",
       "default_install": {
         "mode": "project-local",
-        "offer_by_default": true,
+        "offer_by_default": false,
         "requires_user_approval_in_modes": [
           "ask-each-change",
           "agent-approve"
@@ -224,13 +225,13 @@
     },
     {
       "name": "gitsync",
-      "version": "$AGENT_SEED_VERSION",
+      "version": "v1.0.0",
       "kind": "multi-platform-direct-skill",
       "source_path": "bundled-skills/gitsync/skill",
       "purpose": "Sync a fork's mainline branch from upstream to the local mainline and push it to origin without merge commits.",
       "default_install": {
         "mode": "project-local",
-        "offer_by_default": true,
+        "offer_by_default": false,
         "requires_user_approval_in_modes": [
           "ask-each-change",
           "agent-approve"
@@ -284,19 +285,75 @@
       ]
     },
     {
+      "name": "project-distiller",
+      "version": "v1.0.0",
+      "kind": "multi-platform-direct-skill",
+      "source_path": "bundled-skills/project-distiller/skill",
+      "purpose": "Perform initial or explicit full project knowledge distillation, owner interviews, agent-runbook generation, and fresh-agent validation.",
+      "default_install": {
+        "mode": "project-local",
+        "offer_by_default": true,
+        "required": true,
+        "requires_user_approval_in_modes": [
+          "ask-each-change",
+          "agent-approve"
+        ],
+        "install_only_for_detected_or_requested_platforms": true
+      },
+      "platforms": [
+        {
+          "platform": "codex",
+          "target_path": "skills/project-distiller",
+          "overlay_path": "bundled-skills/project-distiller/overlays/codex",
+          "detection_paths": [".codex", "skills"],
+          "verification": "SKILL.md exists at skills/project-distiller/SKILL.md"
+        },
+        {
+          "platform": "claude",
+          "target_path": ".claude/skills/project-distiller",
+          "detection_paths": [".claude", "CLAUDE.md"],
+          "verification": "SKILL.md exists at .claude/skills/project-distiller/SKILL.md"
+        },
+        {
+          "platform": "codeagent-cli",
+          "target_path": ".cac/skills/project-distiller",
+          "detection_paths": [".cac"],
+          "verification": "SKILL.md exists at .cac/skills/project-distiller/SKILL.md"
+        },
+        {
+          "platform": "opencode",
+          "target_path": ".opencode/skills/project-distiller",
+          "detection_paths": [".opencode", "opencode.json", ".opencode.yaml"],
+          "verification": "SKILL.md exists at .opencode/skills/project-distiller/SKILL.md"
+        }
+      ],
+      "writes": [
+        "skills/project-distiller",
+        ".claude/skills/project-distiller",
+        ".cac/skills/project-distiller",
+        ".opencode/skills/project-distiller"
+      ]
+    },
+    {
       "name": "knowledge-updater",
-      "version": "$AGENT_SEED_VERSION",
+      "version": "v1.0.0",
       "kind": "multi-platform-direct-skill",
       "source_path": "bundled-skills/knowledge-updater/skill",
       "purpose": "Maintain AGENTS.md and agents.d from durable knowledge established during the current task before the final response.",
       "default_install": {
         "mode": "project-local",
         "offer_by_default": true,
+        "required": true,
         "requires_user_approval_in_modes": [
           "ask-each-change",
           "agent-approve"
         ],
         "install_only_for_detected_or_requested_platforms": true
+      },
+      "post_install": {
+        "action": "ensure-knowledge-updater-completion-rule",
+        "requires_user_approval_in_modes": ["ask-each-change", "agent-approve"],
+        "instruction_files": ["AGENTS.md", "CLAUDE.md"]
       },
       "platforms": [
         {
@@ -346,13 +403,13 @@
     },
     {
       "name": "ticket-lookup",
-      "version": "$AGENT_SEED_VERSION",
+      "version": "v1.0.0",
       "kind": "multi-platform-direct-skill",
       "source_path": "bundled-skills/ticket-lookup/skill",
       "purpose": "Retrieve SR and AR ticket content from a project-configured requirements-management site through OpenCLI.",
       "default_install": {
         "mode": "project-local",
-        "offer_by_default": true,
+        "offer_by_default": false,
         "requires_user_approval_in_modes": [
           "ask-each-change",
           "agent-approve"

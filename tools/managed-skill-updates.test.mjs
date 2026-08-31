@@ -66,9 +66,109 @@ test("inspectManagedUpdates accepts the mode-aware post-install action in the bu
       platform: "claude",
     });
 
-    assert.equal(report.managed.find((entry) => entry.name === "agent-seed-updater").state, "install-available");
+    assert.deepEqual(
+      report.managed.map((entry) => entry.name),
+      ["agent-seed-updater", "project-distiller", "knowledge-updater"],
+    );
+    assert.ok(report.managed.every((entry) => entry.state === "install-available"));
   } finally {
     await rm(targetDir, { recursive: true, force: true });
+  }
+});
+
+test("managed inspection detects local content drift and full-access batch leaves it untouched", async () => {
+  const rootDir = await mkdtemp(path.join(tmpdir(), "agent-seed-managed-drift-"));
+  const skillRoot = path.join(rootDir, "skill-root");
+  const targetDir = path.join(rootDir, "target");
+  const targetPath = path.join(targetDir, "skills", "gitpush");
+
+  try {
+    await writeManifest(skillRoot, "v1.1.0");
+    await mkdir(targetPath, { recursive: true });
+    await writeFile(path.join(targetPath, "SKILL.md"), "original\n");
+    await writeManagedMarker(targetPath, "gitpush", "v1.1.0");
+    await mkdir(path.join(targetDir, ".agents"), { recursive: true });
+    await writeFile(path.join(targetDir, ".agents", "managed-skills.json"), `${JSON.stringify({
+      schema_version: 2,
+      managed_skills: [record("gitpush", "v1.1.0")],
+      external_integrations: [],
+    })}\n`);
+
+    await writeFile(path.join(targetPath, "SKILL.md"), "owner modified\n");
+    const report = await manager.inspectManagedUpdates({ skillRoot, targetDir, platform: "codex" });
+    assert.equal(report.managed.find((entry) => entry.name === "gitpush").state, "modified");
+
+    const invoked = [];
+    const batch = await manager.applyManagedUpdates({
+      skillRoot,
+      targetDir,
+      platform: "codex",
+      approved: true,
+      applyEntry: async ({ name }) => { invoked.push(name); },
+    });
+    assert.equal(invoked.includes("gitpush"), false);
+    assert.equal(batch.results.find((entry) => entry.name === "gitpush").result, "skipped");
+    assert.equal(await readFile(path.join(targetPath, "SKILL.md"), "utf8"), "owner modified\n");
+  } finally {
+    await rm(rootDir, { recursive: true, force: true });
+  }
+});
+
+test("managed install completes and verifies declared instruction rules", async () => {
+  const rootDir = await mkdtemp(path.join(tmpdir(), "agent-seed-managed-post-install-"));
+  const skillRoot = path.join(rootDir, "skill-root");
+  const targetDir = path.join(rootDir, "target");
+
+  try {
+    await writeSyntheticManifest(skillRoot, [{
+      name: "knowledge-updater",
+      version: "v1.0.0",
+      required: true,
+      post_install: {
+        action: "ensure-knowledge-updater-completion-rule",
+        requires_user_approval_in_modes: ["ask-each-change", "agent-approve"],
+        instruction_files: ["AGENTS.md", "CLAUDE.md"],
+      },
+    }]);
+    const source = path.join(skillRoot, "bundled-skills", "knowledge-updater", "skill");
+    await mkdir(source, { recursive: true });
+    await writeFile(path.join(source, "SKILL.md"), "---\nname: knowledge-updater\ndescription: test\n---\n");
+
+    await manager.applyManagedUpdate({
+      skillRoot,
+      targetDir,
+      name: "knowledge-updater",
+      platform: "codex",
+      approved: true,
+    });
+
+    assert.match(await readFile(path.join(targetDir, "AGENTS.md"), "utf8"), /agent-seed:knowledge-updater/);
+    const report = await manager.inspectManagedUpdates({ skillRoot, targetDir, platform: "codex" });
+    assert.equal(report.managed.find((entry) => entry.name === "knowledge-updater").state, "current");
+  } finally {
+    await rm(rootDir, { recursive: true, force: true });
+  }
+});
+
+test("required managed components cannot be persistently declined", async () => {
+  const rootDir = await mkdtemp(path.join(tmpdir(), "agent-seed-managed-required-decline-"));
+  const skillRoot = path.join(rootDir, "skill-root");
+  const targetDir = path.join(rootDir, "target");
+
+  try {
+    await writeSyntheticManifest(skillRoot, [{ name: "project-distiller", version: "v1.0.0", required: true }]);
+    await assert.rejects(
+      manager.recordInstallOfferDecline({
+        skillRoot,
+        targetDir,
+        name: "project-distiller",
+        platform: "codex",
+        confirmed: true,
+      }),
+      /Required managed components cannot be declined/,
+    );
+  } finally {
+    await rm(rootDir, { recursive: true, force: true });
   }
 });
 
@@ -535,7 +635,7 @@ test("applyManagedUpdates installs direct and package entries and preserves post
         name: "direct-skill",
         version: "v1.1.0",
         post_install: {
-          action: "refresh-direct-skill",
+          action: "ensure-knowledge-updater-completion-rule",
           requires_user_approval_in_modes: ["ask-each-change"],
           instruction_files: ["AGENTS.md"],
         },
@@ -568,7 +668,7 @@ test("applyManagedUpdates installs direct and package entries and preserves post
       { name: "tracker", result: "installed" },
     ]);
     assert.deepEqual(batch.results[0].post_install, {
-      action: "refresh-direct-skill",
+      action: "ensure-knowledge-updater-completion-rule",
       requires_user_approval_in_modes: ["ask-each-change"],
       instruction_files: ["AGENTS.md"],
     });
@@ -671,7 +771,11 @@ test("applyManagedUpdate replaces an approved direct skill and records its versi
 
     assert.equal(await readFile(path.join(targetDir, "skills", "gitpush", "SKILL.md"), "utf8"), "new skill\n");
     const metadata = JSON.parse(await readFile(path.join(targetDir, "skills", "gitpush", ".agent-seed-managed.json"), "utf8"));
-    assert.deepEqual(metadata, { name: "gitpush", kind: "direct-skill", version: "v1.1.0", platform: "codex" });
+    assert.deepEqual(
+      { ...metadata, content_sha256: "<digest>" },
+      { name: "gitpush", kind: "direct-skill", version: "v1.1.0", platform: "codex", content_sha256: "<digest>" },
+    );
+    assert.match(metadata.content_sha256, /^[a-f0-9]{64}$/);
     assert.equal((await manager.readManagedState(targetDir)).managed_skills[0].version, "v1.1.0");
     await assert.rejects(
       manager.applyManagedUpdate({ skillRoot, targetDir, name: "gitpush", platform: "codex", approved: false }),
@@ -1104,11 +1208,13 @@ function record(name, version) {
 }
 
 async function writeManagedMarker(targetPath, name, version) {
+  const contentSha256 = await manager.calculateManagedContentDigest(targetPath);
   await writeFile(path.join(targetPath, ".agent-seed-managed.json"), `${JSON.stringify({
     name,
     kind: "direct-skill",
     version,
     platform: "codex",
+    content_sha256: contentSha256,
   })}\n`);
 }
 
@@ -1184,12 +1290,12 @@ async function writeSyntheticManifest(skillRoot, entries, packages = []) {
           personal_or_global_target_requires_explicit_request: true,
         },
       },
-      bundled_skills: entries.map(({ name, version, post_install }) => ({
+      bundled_skills: entries.map(({ name, version, post_install, required }) => ({
         name,
         version,
         kind: "multi-platform-direct-skill",
         source_path: `bundled-skills/${name}/skill`,
-        default_install: { offer_by_default: true },
+        default_install: { offer_by_default: true, required: required === true },
         ...(post_install ? { post_install } : {}),
         platforms: [{ platform: "codex", target_path: `skills/${name}` }],
       })),

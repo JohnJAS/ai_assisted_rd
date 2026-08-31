@@ -59,3 +59,4 @@ Ask only questions that repository evidence and project-local framework knowledg
 - Do not write framework-specific commands as facts unless they appear in repository files or the owner confirms them.
 - Do not treat preset generated-file boundaries as confirmed. Ask the owner or cite repo evidence.
 - Do not turn temporary troubleshooting notes, secrets, personal paths, internal account names, or one-off incident chatter into reusable runbook content.
+

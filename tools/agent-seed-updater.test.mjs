@@ -156,11 +156,11 @@ test("updater instructions make full-access managed synchronization mode-aware",
 
   assert.match(updater, /resolve.*knowledge_asset_write_mode.*before.*preflight/is);
   assert.match(updater, /full-access.*manage-managed-skills\.mjs apply.*--all.*--approved.*--json/is);
-  assert.match(updater, /ask-each-change.*agent-approve.*manage-managed-skills\.mjs apply.*--name/is);
-  assert.match(updater, /post_install.*preflight again/is);
-  assert.match(updater, /failed.*continue.*later/is);
-  assert.match(core, /managed_target_policy.*replace-and-verify/is);
-  assert.match(core, /full-access.*managed.*replace.*approval-gated.*approval/is);
+  assert.match(updater, /approval-gated modes.*manage-managed-skills\.mjs apply.*--name/is);
+  assert.match(updater, /content digest.*instruction rule verify/is);
+  assert.match(updater, /modified.*Never overwrite it automatically/is);
+  assert.match(core, /full-access.*synchronize.*--all/is);
+  assert.match(core, /agent-approve.*ask-each-change.*--name/is);
 });
 
 test("preflight CLI emits combined JSON for a cached self-update result", async () => {

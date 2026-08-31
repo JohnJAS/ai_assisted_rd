@@ -109,3 +109,4 @@ Never silently pick a rule when the conflict could affect setup, tests, data, se
 - Add or update bundled packages only when reusable workflows need installer-backed distributed files or nested platform skills; otherwise document the workflow as an approved tool or recipe.
 - Update `bundled-skills.json` whenever a direct bundled skill is added, removed, renamed, or changes supported platforms, target paths, overlay paths, default-offer rules, verification, or safety policy.
 - Update `bundled-packages.json` whenever a vendored package or nested platform skill is added, removed, upgraded, or re-pinned.
+

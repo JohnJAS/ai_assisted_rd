@@ -1,0 +1,4 @@
+interface:
+  display_name: "Project Distiller"
+  short_description: "Distill repository and owner knowledge into agent runbooks."
+  default_prompt: "Use $project-distiller to scan this project, interview me about missing operational knowledge, and create or comprehensively refresh AGENTS.md and focused agents.d runbooks."

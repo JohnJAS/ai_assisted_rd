@@ -1,4 +1,5 @@
-import { access, cp, mkdir, mkdtemp, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { access, cp, lstat, mkdir, mkdtemp, readFile, readdir, readlink, rename, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -27,8 +28,15 @@ const ACTIONABLE_MANAGED_STATES = new Set([
   "missing",
   "unverified",
   "legacy-unmanaged",
+  "partial",
 ]);
-const EXISTING_TARGET_STATES = new Set(["update-available", "unverified", "legacy-unmanaged"]);
+const EXISTING_TARGET_STATES = new Set(["update-available", "unverified", "legacy-unmanaged", "partial"]);
+const POST_INSTALL_ACTIONS = new Set([
+  "ensure-agent-seed-updater-startup-rule",
+  "ensure-knowledge-updater-completion-rule",
+]);
+const STARTUP_RULE_MARKER = "agent-seed:agent-seed-updater";
+const KNOWLEDGE_RULE_MARKER = "agent-seed:knowledge-updater";
 const DEFAULT_MANAGED_TARGET_POLICY = Object.freeze({
   full_access: "ask-before-write",
   approval_gated: "ask-before-write",
@@ -150,6 +158,12 @@ export async function inspectManagedUpdates({ skillRoot, targetDir, platform }) 
     const targetExists = await pathExists(targetPath);
     const installed = targetExists ? await readManagedMetadata(targetPath) : null;
     const installedMatches = isMatchingManagedMetadata(installed, entry, platform);
+    const contentCurrent = installedMatches && hasManagedContentDigest(installed)
+      ? await managedContentMatches(targetPath, installed.content_sha256)
+      : false;
+    const postInstallCurrent = targetExists && installedMatches && contentCurrent
+      ? await isPostInstallSatisfied({ targetDir: resolvedTargetDir, platform, postInstall: entry.post_install })
+      : false;
     const decline = state.declined_install_offers.find((candidate) =>
       candidate.name === entry.name
       && candidate.kind === entry.kind
@@ -167,9 +181,15 @@ export async function inspectManagedUpdates({ skillRoot, targetDir, platform }) 
             ? "missing"
             : !installedMatches
               ? "unverified"
+              : !hasManagedContentDigest(installed)
+                ? "unverified"
+                : !contentCurrent
+                  ? "modified"
               : compareVersions(installed.version, entry.version) < 0
                 || compareVersions(installed.version, record.version) < 0
                 ? "update-available"
+                : !postInstallCurrent
+                  ? "partial"
                 : "current"
       : targetExists
         ? "legacy-unmanaged"
@@ -184,6 +204,7 @@ export async function inspectManagedUpdates({ skillRoot, targetDir, platform }) 
       installed_version: installed?.version ?? null,
       available_version: entry.version,
       state: status,
+      required: entry.required,
       ...(status === "baseline-unavailable" ? { required_version: record.version } : {}),
     });
   }
@@ -248,8 +269,16 @@ export async function applyManagedUpdate({ skillRoot, targetDir, name, platform,
   const stagedSkill = path.join(stagingRoot, "skill");
   const backupPath = `${targetPath}.agent-seed-backup-${Date.now()}`;
   const targetExisted = await pathExists(targetPath);
+  let instructionBackup = null;
 
   try {
+    if (entry.post_install) {
+      instructionBackup = await backupWriteRoots(
+        resolvedTargetDir,
+        entry.post_install.instruction_files,
+        path.join(stagingRoot, "instruction-backup"),
+      );
+    }
     await cp(sourceDir, stagedSkill, { recursive: true });
     if (entry.overlay_path) {
       await cp(resolveInside(path.resolve(skillRoot), entry.overlay_path, `${name} overlay path`), stagedSkill, { recursive: true });
@@ -266,7 +295,12 @@ export async function applyManagedUpdate({ skillRoot, targetDir, name, platform,
       kind: entry.kind,
       version: entry.version,
       platform,
+      content_sha256: await calculateManagedContentDigest(targetPath),
     });
+    await applyPostInstall({ targetDir: resolvedTargetDir, platform, postInstall: entry.post_install });
+    if (!(await isPostInstallSatisfied({ targetDir: resolvedTargetDir, platform, postInstall: entry.post_install }))) {
+      throw new Error(`Post-install verification failed: ${entry.name}`);
+    }
     await recordManagedInstall(resolvedTargetDir, {
       name: entry.name,
       kind: entry.kind,
@@ -282,6 +316,7 @@ export async function applyManagedUpdate({ skillRoot, targetDir, name, platform,
     if (targetExisted && (await pathExists(backupPath))) {
       await rename(backupPath, targetPath);
     }
+    if (instructionBackup) await restoreWriteRoots(resolvedTargetDir, instructionBackup);
     throw error;
   } finally {
     await rm(stagingRoot, { recursive: true, force: true });
@@ -369,7 +404,11 @@ export async function applyManagedUpdates({
 
 async function applyPackageUpdate({ entry, targetDir, platform, installPackage }) {
   const stagingRoot = await mkdtemp(path.join(tmpdir(), "agent-seed-managed-package-"));
-  const backup = await backupWriteRoots(targetDir, entry.write_paths, stagingRoot);
+  const backup = await backupWriteRoots(
+    targetDir,
+    [...entry.write_paths, ...(entry.post_install?.instruction_files || [])],
+    stagingRoot,
+  );
   const installer = installPackage || defaultPackageInstaller(entry.name);
   const installedTarget = resolveInside(targetDir, entry.target_path, `${entry.name} target path`);
   const targetExisted = await pathExists(installedTarget);
@@ -382,7 +421,12 @@ async function applyPackageUpdate({ entry, targetDir, platform, installPackage }
       kind: entry.kind,
       version: entry.version,
       platform,
+      content_sha256: await calculateManagedContentDigest(installedTarget),
     });
+    await applyPostInstall({ targetDir, platform, postInstall: entry.post_install });
+    if (!(await isPostInstallSatisfied({ targetDir, platform, postInstall: entry.post_install }))) {
+      throw new Error(`Post-install verification failed: ${entry.name}`);
+    }
     await recordManagedInstall(targetDir, {
       name: entry.name,
       kind: entry.kind,
@@ -429,6 +473,7 @@ export async function recordInstallOfferDecline({ skillRoot, targetDir, name, pl
   if (confirmed !== true) throw new Error("An explicit owner decline is required.");
   const entry = (await readManagedEntries(skillRoot, platform)).find((candidate) => candidate.name === name);
   if (!entry || !entry.offer_by_default) throw new Error(`Unknown default install offer for ${platform}: ${name}`);
+  if (entry.required) throw new Error(`Required managed components cannot be declined: ${name}`);
 
   const state = await readManagedState(targetDir);
   const decline = {
@@ -502,6 +547,7 @@ function normalizeEntry(entry, platformEntry, kind, managedTargetPolicy) {
     overlay_path: platformEntry.overlay_path,
     offer_by_default: entry.default_install?.offer_by_default === true,
     post_install: normalizePostInstall(entry.post_install, entry.name),
+    required: entry.default_install?.required === true,
     write_paths: entry.default_install?.writes || [platformEntry.target_path],
     managed_target_policy: managedTargetPolicy,
   };
@@ -511,7 +557,7 @@ function normalizePostInstall(postInstall, name) {
   if (postInstall === undefined) return null;
   const approvalModes = postInstall?.requires_user_approval_in_modes;
   if (!postInstall || typeof postInstall !== "object" || Array.isArray(postInstall)
-      || typeof postInstall.action !== "string" || postInstall.action.trim() === ""
+      || typeof postInstall.action !== "string" || !POST_INSTALL_ACTIONS.has(postInstall.action)
       || !Array.isArray(approvalModes)
       || approvalModes.some((mode) => typeof mode !== "string" || mode.trim() === "")
       || !Array.isArray(postInstall.instruction_files)) {
@@ -522,6 +568,103 @@ function normalizePostInstall(postInstall, name) {
     requires_user_approval_in_modes: approvalModes,
     instruction_files: postInstall.instruction_files,
   };
+}
+
+async function applyPostInstall({ targetDir, platform, postInstall }) {
+  if (!postInstall) return;
+  const block = postInstall.action === "ensure-agent-seed-updater-startup-rule"
+    ? {
+        marker: STARTUP_RULE_MARKER,
+        heading: "Agent Seed startup",
+        text: "Before the first user task in each new agent conversation, invoke the installed `agent-seed-updater` exactly once. Let it check only Agent Seed and project-local managed components, report actionable results without blocking the requested task, and never start repository onboarding. If project knowledge is not initialized or the owner requests a full refresh, invoke the installed `project-distiller` separately.",
+      }
+    : {
+        marker: KNOWLEDGE_RULE_MARKER,
+        heading: "Knowledge maintenance",
+        text: "After completing and verifying every task, invoke the installed `knowledge-updater` immediately before the final response. Let it use only current-conversation knowledge plus existing `AGENTS.md` and relevant `agents.d/` files, and append exactly one returned knowledge-asset status.",
+      };
+  await ensureInstructionBlock(path.join(targetDir, "AGENTS.md"), block);
+  if (["claude", "codeagent-cli"].includes(platform)) {
+    await ensureAgentsImport(path.join(targetDir, "CLAUDE.md"));
+  }
+}
+
+async function isPostInstallSatisfied({ targetDir, platform, postInstall }) {
+  if (!postInstall) return true;
+  const marker = postInstall.action === "ensure-agent-seed-updater-startup-rule"
+    ? STARTUP_RULE_MARKER
+    : KNOWLEDGE_RULE_MARKER;
+  const agents = await readTextIfExists(path.join(targetDir, "AGENTS.md"));
+  if (!agents.includes(`<!-- ${marker} -->`)) return false;
+  if (["claude", "codeagent-cli"].includes(platform)) {
+    const claude = await readTextIfExists(path.join(targetDir, "CLAUDE.md"));
+    if (!/^@AGENTS\.md\s*$/m.test(claude)) return false;
+  }
+  return true;
+}
+
+async function ensureInstructionBlock(filePath, { marker, heading, text }) {
+  const existing = await readTextIfExists(filePath);
+  if (existing.includes(`<!-- ${marker} -->`)) return false;
+  const separator = existing.trim() === "" ? "" : "\n\n";
+  const block = `<!-- ${marker} -->\n## ${heading}\n\n${text}\n<!-- /${marker} -->\n`;
+  await mkdir(path.dirname(filePath), { recursive: true });
+  await writeFile(filePath, `${existing.replace(/\s+$/, "")}${separator}${block}`, "utf8");
+  return true;
+}
+
+async function ensureAgentsImport(filePath) {
+  const existing = await readTextIfExists(filePath);
+  if (/^@AGENTS\.md\s*$/m.test(existing)) return false;
+  const separator = existing.trim() === "" ? "" : "\n\n";
+  await mkdir(path.dirname(filePath), { recursive: true });
+  await writeFile(filePath, `${existing.replace(/\s+$/, "")}${separator}@AGENTS.md\n`, "utf8");
+  return true;
+}
+
+async function readTextIfExists(filePath) {
+  try {
+    return await readFile(filePath, "utf8");
+  } catch (error) {
+    if (error.code === "ENOENT") return "";
+    throw error;
+  }
+}
+
+export async function calculateManagedContentDigest(targetPath) {
+  const root = path.resolve(targetPath);
+  const hash = createHash("sha256");
+
+  async function visit(directory) {
+    const entries = (await readdir(directory, { withFileTypes: true }))
+      .filter((entry) => entry.name !== MANAGED_METADATA_FILE)
+      .sort((left, right) => left.name.localeCompare(right.name));
+    for (const entry of entries) {
+      const absolute = path.join(directory, entry.name);
+      const relative = path.relative(root, absolute).replaceAll("\\", "/");
+      if (entry.isDirectory()) {
+        hash.update(`D\0${relative}\0`);
+        await visit(absolute);
+      } else if (entry.isSymbolicLink()) {
+        hash.update(`L\0${relative}\0${await readlink(absolute)}\0`);
+      } else {
+        const details = await lstat(absolute);
+        hash.update(`F\0${relative}\0${details.mode}\0${details.size}\0`);
+        hash.update(await readFile(absolute));
+      }
+    }
+  }
+
+  await visit(root);
+  return hash.digest("hex");
+}
+
+function hasManagedContentDigest(metadata) {
+  return typeof metadata?.content_sha256 === "string" && /^[a-f0-9]{64}$/.test(metadata.content_sha256);
+}
+
+async function managedContentMatches(targetPath, expected) {
+  return (await calculateManagedContentDigest(targetPath)) === expected;
 }
 
 function defaultPackageInstaller(name) {

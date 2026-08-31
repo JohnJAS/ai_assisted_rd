@@ -1486,15 +1486,21 @@ async function replaceDirectory({ sourceDir, targetDir, backupDir }) {
 }
 
 async function extractZip(zipPath, extractDir) {
+  await mkdir(extractDir, { recursive: true });
   if (process.platform === "win32") {
-    await run("powershell", [
-      "-NoProfile",
-      "-Command",
-      "& { param($zipPath, $extractDir) Expand-Archive -LiteralPath $zipPath -DestinationPath $extractDir -Force }",
-      zipPath,
-      extractDir,
-    ]);
-    return;
+    try {
+      await run("tar", ["-xf", zipPath, "-C", extractDir]);
+      return;
+    } catch {
+      await run("powershell", [
+        "-NoProfile",
+        "-Command",
+        "& { param($zipPath, $extractDir) Expand-Archive -LiteralPath $zipPath -DestinationPath $extractDir -Force }",
+        zipPath,
+        extractDir,
+      ]);
+      return;
+    }
   }
 
   await run("unzip", ["-q", "-o", zipPath, "-d", extractDir]);

@@ -106,3 +106,4 @@ Ask only questions that repository evidence and project-local framework knowledg
 - Apply the resolved mode to installs and manifest-declared initialization. Do not run updates, devices or emulators, tail logs, create projects, or perform standalone environment changes without owner approval.
 - Do not treat preset generated-file boundaries as confirmed. Ask the owner or cite repo evidence.
 - Do not turn temporary troubleshooting notes, secrets, personal paths, internal account names, or one-off incident chatter into reusable runbook content.
+
